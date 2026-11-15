@@ -27,6 +27,11 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk Monitor.apk
+      - name: Verify APK output and checksum
+        run: |
+          test -s Monitor.apk
+          unzip -t Monitor.apk >/dev/null
+          sha256sum Monitor.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Monitor
