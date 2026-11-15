@@ -1,14 +1,16 @@
 # Monitor (Windows 10/11 + Android)
 **Durum: deneysel çoğaltma prototipi.** Windows'un yerleşik **Uzat** ve **Yenile/Çoğalt** ekran menüsüyle bütünleşmez. Miracast alıcısı değildir. Windows için ayrı bir gönderici programı gerekir.
 
-## Windows
-1. Python 3 yükleyin.
-2. `pip install pillow mss`
-3. `python windows_sender.py` çalıştırın.
-4. Windows Güvenlik Duvarı'nda özel ağlar için TCP 48621 ve UDP 48620 trafiğine izin verin.
-5. Telefonları aynı Wi-Fi ağına bağlayıp **Monitor** uygulamasını açın.
+## Windows — kurulum gerektirmeyen taşınabilir gönderici
+1. Bu depodaki `Monitor-Gonder.ps1` ve `Monitor-Baslat.cmd` dosyalarını **aynı klasöre** indirin.
+2. Windows 10/11 Pro bilgisayarda `Monitor-Baslat.cmd` dosyasını çalıştırın. Bu, Windows'un kendi PowerShell 5.1 ve .NET bileşenlerini kullanır; Python, tarayıcı veya üçüncü taraf yazılım kurulumu gerekmez.
+3. Windows güvenlik duvarında istenirse **özel ağ** için izin verin. TCP 48621 erişimi ve UDP 48620 yayın keşfi gereklidir. Telefon ve bilgisayar aynı Wi-Fi ağında, istemci yalıtımı kapalı olmalıdır.
+4. Android telefonda Monitor.apk'yi açın. Telefon UDP duyurusunu algılayıp bilgisayarın TCP 48621 portuna bağlanmayı dener; başarılıysa Windows'un **birincil ekranı** JPEG kareleriyle eşzamanlı görüntülenir.
+5. Göndericiyi durdurmak için Windows komut penceresinde Ctrl+C kullanın.
 
-Windows programı, birinci monitörü JPEG kareleri halinde aynı ağdaki bütün telefonlara yayınlar. Yaklaşık 10 FPS, en fazla 1280x720; gecikme ağ koşullarına bağlıdır. Aynı Wi-Fi ağında olmak tek başına yeterli olmayabilir: istemci yalıtımı, VPN ve güvenlik duvarı bağlantıyı engelleyebilir.
+**Güvenlik:** Bu deneysel protokolde görüntü şifrelenmez ve kimlik doğrulaması yoktur. Yalnızca güvenilen özel ağlarda çalıştırın. PowerShell'i yönetici olarak çalıştırmak gerekmez; kurum politikası komut dosyası çalıştırmayı engelliyorsa politikayı izinsiz aşmayın.
+
+**Sınırlamalar:** Windows + K, gerçek ikinci monitör veya Uzat modu değildir. Birincil ekran çoğaltılır; masaüstü kilitlenmez. Performans ve bağlantı gerçek cihazlarda henüz doğrulanmadı. Önceki `windows_sender.py` ve `Monitor-PC.bat` yöntemleri eski alternatiflerdir ve ek bağımlılıklar gerektirebilir.
 
 ## Android
 Yatay beyaz bekleme ekranı, çift dokununca 5 saniyelik dönüş, bağlantı kopunca bekleme ekranı, üç saniye içinde iki aşamalı kapatma.
