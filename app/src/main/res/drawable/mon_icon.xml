@@ -1,10 +1,12 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-<path android:fillColor="#FFFFFF" android:pathData="M0,0h108v108h-108z"/>
-<path android:fillColor="#D9F2FF" android:pathData="M7,7h94v94h-94z"/>
-<path android:fillColor="#FFFFFF" android:pathData="M13,13h82v82h-82z"/>
-<path android:fillColor="#138FD2" android:pathData="M7,7h94v6h-94z M7,95h94v6h-94z M7,7h6v94h-6z M95,7h6v94h-6z"/>
-<!-- Mon lettering -->
-<path android:fillColor="#168BD0" android:pathData="M21,72V36h7l10,17 10,-17h7v36h-7V48l-10,16 -10,-16v24z"/>
-<path android:fillColor="#168BD0" android:pathData="M69,45a14,14 0,1 0,0.1 0 M69,52a7,7 0,1 1,-0.1 0"/>
-<path android:fillColor="#168BD0" android:pathData="M82,72V47h7v3c2,-3 5,-4 8,-4v7c-5,0 -8,3 -8,8v11z"/>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+ android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+ <path android:fillColor="#FFFFFF" android:pathData="M0,0h108v108h-108z"/>
+ <path android:fillColor="#DDF3FF" android:pathData="M8,8h92v92h-92z"/>
+ <path android:fillColor="#FFFFFF" android:pathData="M14,14h80v80h-80z"/>
+ <path android:fillColor="#1599DC" android:pathData="M8,8h92v5h-92z M8,95h92v5h-92z M8,8h5v92h-5z M95,8h5v92h-5z"/>
+ <!-- Centered block lettering Mon, with safe margins on all sides -->
+ <path android:fillColor="#117FC3" android:pathData="M20,69V39h6l9,14 9,-14h6v30h-6V50l-9,13 -9,-13v19z"/>
+ <path android:fillColor="#117FC3" android:pathData="M63,46a11,11 0,1 0,0.01 0z"/>
+ <path android:fillColor="#FFFFFF" android:pathData="M63,52a5,5 0,1 0,0.01 0z"/>
+ <path android:fillColor="#117FC3" android:pathData="M77,69V47h6v3c2,-3 4,-4 7,-4v6c-5,0 -7,3 -7,8v9z"/>
 </vector>
