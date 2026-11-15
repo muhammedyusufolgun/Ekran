@@ -37,13 +37,13 @@ public class MainActivity extends Activity {
    String permission=(android.os.Build.VERSION.SDK_INT>=33&&getApplicationInfo().targetSdkVersion>=33)?"android.permission.NEARBY_WIFI_DEVICES":"android.permission.ACCESS_FINE_LOCATION";
    if(checkSelfPermission(permission)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{permission},501);return;}
    android.location.LocationManager lm=(android.location.LocationManager)getSystemService(Context.LOCATION_SERVICE);
-   if(lm!=null&&!lm.isLocationEnabled()){reportTest("Wi-Fi Direct","Android konum hizmeti kapalı. Wi-Fi Direct cihaz araması için konum hizmetini açın.");return;}
+   if(lm!=null&&!lm.isLocationEnabled()){new AlertDialog.Builder(this).setTitle("Konum hizmeti gerekli").setMessage("Android Wi-Fi Direct keşfi için konum hizmetini açın. Bu işlem konumunuzu başka cihazlara göndermez.").setPositiveButton("Ayarları aç",(d,w)->startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))).setNegativeButton("İptal",null).show();return;}
    WifiP2pManager manager=(WifiP2pManager)getSystemService(Context.WIFI_P2P_SERVICE);
    if(manager==null){reportTest("Wi-Fi Direct","Wi-Fi Direct sistem servisi bulunamadı.");return;}
    WifiP2pManager.Channel channel=p2pChannel!=null?p2pChannel:manager.initialize(this,getMainLooper(),()->reportTest("Wi-Fi Direct","Sistem Wi-Fi Direct kanalını kapattı."));
    if(channel==null){reportTest("Wi-Fi Direct","Wi-Fi Direct kanalı başlatılamadı.");return;}
-   scanning=true;manager.discoverPeers(channel,new WifiP2pManager.ActionListener(){
-    public void onSuccess(){ui.postDelayed(()->{if(scanning)showP2pPeers();},8000);}
+   scanning=true;p2pManager=manager;p2pChannel=channel;manager.discoverPeers(channel,new WifiP2pManager.ActionListener(){
+    public void onSuccess(){ui.postDelayed(()->{if(scanning)showP2pPeers();},5000);ui.postDelayed(()->{if(scanning){scanning=false;reportTest("Cihaz bulunamadı","20 saniye içinde Wi-Fi Direct cihazı bulunamadı. Windows + K, yalnızca Miracast alıcılarını listeler; bu APK henüz Miracast alıcısı değildir.");}},20000);}
     public void onFailure(int reason){scanning=false;reportTest("Wi-Fi Direct","Cihaz araması başarısız. Kod: "+reason+" (0=ERROR, 1=P2P_UNSUPPORTED, 2=BUSY)");}
    });
   }catch(SecurityException e){reportTest("İzin hatası",e.toString());}
