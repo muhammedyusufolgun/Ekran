@@ -1,4 +1,4 @@
-name: Build Ekran APK
+name: Build Monitor APK
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -26,8 +26,8 @@ jobs:
       - name: Build APK
         run: gradle --no-daemon :app:assembleDebug
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk Ekran.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Monitor.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Ekran
-          path: Ekran.apk
+          name: Monitor
+          path: Monitor.apk
