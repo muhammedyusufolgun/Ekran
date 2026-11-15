@@ -89,7 +89,8 @@ public class MainActivity extends Activity {
    ByteArrayOutputStream headers=new ByteArrayOutputStream();int prev=-1,c;while(headers.size()<8192&&(c=in.read())!=-1){headers.write(c);if(prev==13&&c==10){byte[] b=headers.toByteArray();int n=b.length;if(n>=4&&b[n-4]==13&&b[n-3]==10&&b[n-2]==13&&b[n-1]==10)break;}prev=c;}
    String head=headers.toString("ISO-8859-1");String[] lines=head.split("\\r\\n");if(lines.length==0)return;
    String origin=null;int length=-1;for(String line:lines){String low=line.toLowerCase(java.util.Locale.ROOT);if(low.startsWith("content-length:"))length=Integer.parseInt(line.substring(15).trim());if(low.startsWith("origin:"))origin=line.substring(7).trim();}
-   if(lines[0].startsWith("GET / ")){sendHtml(out);return;}\n   if(lines[0].startsWith("OPTIONS ")){sendHttp(out,204,"");return;}
+   if(lines[0].startsWith("GET / ")){sendHtml(out);return;}
+   if(lines[0].startsWith("OPTIONS ")){sendHttp(out,204,"");return;}
    if(!lines[0].startsWith("POST /frame ")||length<1||length>2000000){sendHttp(out,400,"Invalid frame");return;}
    byte[] frame=new byte[length];new DataInputStream(in).readFully(frame);Bitmap bmp=BitmapFactory.decodeByteArray(frame,0,frame.length);
    if(bmp==null){sendHttp(out,400,"Invalid JPEG");return;}
