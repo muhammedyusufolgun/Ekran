@@ -75,7 +75,7 @@ public class MainActivity extends Activity {
  void showBrowserInfo(){
   String ip="Bilinmiyor";
   try{java.util.Enumeration<NetworkInterface> nics=NetworkInterface.getNetworkInterfaces();while(nics.hasMoreElements()){NetworkInterface nic=nics.nextElement();if(!nic.isUp()||nic.isLoopback())continue;java.util.Enumeration<InetAddress> addrs=nic.getInetAddresses();while(addrs.hasMoreElements()){InetAddress a=addrs.nextElement();if(a instanceof Inet4Address&&a.isSiteLocalAddress()){ip=a.getHostAddress();break;}}}}catch(Exception ignored){}
-  new AlertDialog.Builder(this).setTitle("Chrome / Edge görüntü alıcısı").setMessage("Telefon IP: "+ip+"\\nPort: 48622\\n\\nWindows'ta projedeki browser/Monitor-Ekran-Gonder.html dosyasını indirip Chrome veya Edge ile açın. Telefon IP adresini girin ve Ekranı paylaş seçin.\\n\\nDeneysel aktarım: tarayıcı karma içerik veya özel ağ erişimini engelleyebilir. Bu sürümde aktarım şifrelenmez; yalnızca güvenilen yerel ağda kullanın.").setPositiveButton("Tamam",null).show();
+  new AlertDialog.Builder(this).setTitle("Chrome / Edge görüntü alıcısı").setMessage("Telefon IP: "+ip+"\\nPort: 48622\\nTarayıcı bağlantı kontrolü: http://"+ip+":48622/\\n\\nWindows'ta projedeki browser/Monitor-Ekran-Gonder.html dosyasını indirip Chrome veya Edge ile açın. Telefon IP adresini girin ve Ekranı paylaş seçin.\\n\\nDeneysel aktarım: tarayıcı karma içerik veya özel ağ erişimini engelleyebilir. Bu sürümde aktarım şifrelenmez; yalnızca güvenilen yerel ağda kullanın.").setPositiveButton("Tamam",null).show();
  }
  void browserReceiveLoop(){
   try(ServerSocket server=new ServerSocket(48622)){server.setSoTimeout(1500);while(running.get()){
@@ -89,13 +89,19 @@ public class MainActivity extends Activity {
    ByteArrayOutputStream headers=new ByteArrayOutputStream();int prev=-1,c;while(headers.size()<8192&&(c=in.read())!=-1){headers.write(c);if(prev==13&&c==10){byte[] b=headers.toByteArray();int n=b.length;if(n>=4&&b[n-4]==13&&b[n-3]==10&&b[n-2]==13&&b[n-1]==10)break;}prev=c;}
    String head=headers.toString("ISO-8859-1");String[] lines=head.split("\\r\\n");if(lines.length==0)return;
    String origin=null;int length=-1;for(String line:lines){String low=line.toLowerCase(java.util.Locale.ROOT);if(low.startsWith("content-length:"))length=Integer.parseInt(line.substring(15).trim());if(low.startsWith("origin:"))origin=line.substring(7).trim();}
-   if(lines[0].startsWith("OPTIONS ")){sendHttp(out,204,"");return;}
+   if(lines[0].startsWith("GET / ")){sendHtml(out);return;}\n   if(lines[0].startsWith("OPTIONS ")){sendHttp(out,204,"");return;}
    if(!lines[0].startsWith("POST /frame ")||length<1||length>2000000){sendHttp(out,400,"Invalid frame");return;}
    byte[] frame=new byte[length];new DataInputStream(in).readFully(frame);Bitmap bmp=BitmapFactory.decodeByteArray(frame,0,frame.length);
    if(bmp==null){sendHttp(out,400,"Invalid JPEG");return;}
    lastFrame=System.currentTimeMillis();connected=true;ui.post(()->{if(!running.get()||isFinishing()||isDestroyed()){bmp.recycle();return;}picture.setImageBitmap(bmp);if(!paused)showPicture();});
    sendHttp(out,200,"OK");
   }catch(Exception ignored){}
+ }
+ void sendHtml(OutputStream out)throws IOException{
+  String page="<!doctype html><html lang='tr'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Monitor</title><style>body{font:18px Arial;margin:2em;max-width:680px}a{display:block;padding:14px;background:#0284c7;color:white;text-decoration:none;border-radius:8px}</style><h2>Monitor - Telefon alıcısı hazır</h2><p>Bilgisayarınız bu telefona yerel ağ üzerinden erişebiliyor.</p><p>Chrome veya Edge ile ekran paylaşmak için gönderici sayfasını açın. Tarayıcı ekran paylaşımı için güvenli bağlam ve yerel ağ erişim izni isteyebilir.</p><a href='https://github.com/muhammedyusufolgun/Ekran/blob/main/browser/Monitor-Ekran-Gonder.html'>Gönderici sayfasını indir</a><p>Gönderici dosyasını indirip tarayıcıda açın; telefondaki IP adresini girin.</p></html>";
+  byte[] b=page.getBytes("UTF-8");
+  String h="HTTP/1.1 200 OK\\r\\nContent-Type: text/html; charset=utf-8\\r\\nContent-Length: "+b.length+"\\r\\nConnection: close\\r\\n\\r\\n";
+  out.write(h.getBytes("UTF-8"));out.write(b);out.flush();
  }
  void sendHttp(OutputStream out,int code,String body)throws IOException{
   byte[] b=body.getBytes("UTF-8");String status=code==200?"OK":code==204?"No Content":"Bad Request";
