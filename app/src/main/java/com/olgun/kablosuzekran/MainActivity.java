@@ -5,7 +5,7 @@ import android.net.wifi.p2p.WifiP2pInfo;import android.net.wifi.p2p.WifiP2pManag
 import java.net.*;import java.io.*;import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
- final Handler ui=new Handler(Looper.getMainLooper()); FrameLayout root; ImageView picture; LinearLayout home; TextView countdown; Button close; volatile boolean connected=false; volatile boolean paused=false; volatile long lastFrame=0; int seconds=0; int closeStep=0; long closeDeadline=0; final AtomicBoolean running=new AtomicBoolean(true); final AtomicBoolean streaming=new AtomicBoolean(false); WifiP2pManager p2pManager; WifiP2pManager.Channel p2pChannel; BroadcastReceiver p2pReceiver; boolean scanning=false;
+ final Handler ui=new Handler(Looper.getMainLooper()); FrameLayout root; ImageView picture; LinearLayout home; TextView countdown; Button close; volatile boolean connected=false; volatile boolean paused=false; volatile long lastFrame=0; int seconds=0; int closeStep=0; long closeDeadline=0; final AtomicBoolean running=new AtomicBoolean(true); final AtomicBoolean streaming=new AtomicBoolean(false); WifiP2pManager p2pManager; WifiP2pManager.Channel p2pChannel; BroadcastReceiver p2pReceiver; boolean scanning=false; int scanGeneration=0; boolean p2pEnabled=false;
  final Runnable tick=new Runnable(){public void run(){if(!running.get())return; if(connected&&!paused&&System.currentTimeMillis()-lastFrame>3500){connected=false;showHome();} if(paused&&connected){seconds--; if(seconds<=0){paused=false;showPicture();}else countdown.setText(String.valueOf(seconds));}if(closeStep==1&&System.currentTimeMillis()>closeDeadline){closeStep=0;close.setText("Kapat");}ui.postDelayed(this,1000);}};
  @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().getDecorView().setSystemUiVisibility(5894|1024|512);root=new FrameLayout(this);root.setBackgroundColor(Color.WHITE);setContentView(root);picture=new ImageView(this);picture.setScaleType(ImageView.ScaleType.FIT_CENTER);root.addView(picture,new FrameLayout.LayoutParams(-1,-1));home=new LinearLayout(this);home.setOrientation(LinearLayout.VERTICAL);home.setGravity(Gravity.CENTER);root.addView(home,new FrameLayout.LayoutParams(-1,-1));countdown=label("",26);home.addView(countdown);home.addView(label("Kablosuz Monitör",32));TextView name=label("Muhammed Yusuf OLGUN",20);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-2,-2);np.topMargin=36;name.setTextColor(Color.GRAY);home.addView(name,np);Button diagnostic=new Button(this);diagnostic.setText("Bağlantı Tanılama");home.addView(diagnostic);diagnostic.setOnClickListener(v->showDiagnostics());Button scan=new Button(this);scan.setText("Wi-Fi Direct Bağlan");home.addView(scan);scan.setOnClickListener(v->testWifiDirect());close=new Button(this);close.setText("Kapat");LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,-2);cp.topMargin=36;home.addView(close,cp);close.setOnClickListener(v->{if(closeStep==0){closeStep=1;closeDeadline=System.currentTimeMillis()+3000;close.setText("Kapatmayı onayla");}else if(System.currentTimeMillis()<=closeDeadline)finish();else{closeStep=0;close.setText("Kapat");}});picture.setOnTouchListener(new View.OnTouchListener(){long previous=0;public boolean onTouch(View v,android.view.MotionEvent e){if(e.getAction()==1){long now=System.currentTimeMillis();if(now-previous<350){paused=true;seconds=5;showHome();}previous=now;}return true;}});showHome();setupP2pReceiver();ui.post(tick);new Thread(this::receiveLoop,"screen-receiver").start();}
  void setupP2pReceiver(){
@@ -14,7 +14,7 @@ public class MainActivity extends Activity {
    if(p2pManager==null)return;
    p2pChannel=p2pManager.initialize(this,getMainLooper(),()->reportTest("Wi-Fi Direct","Bağlantı kanalı kapandı."));
    p2pReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){
-    if(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(intent.getAction())){if(scanning)showP2pPeers();return;} if(!WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(intent.getAction()))return;
+    if(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION.equals(intent.getAction())){p2pEnabled=intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE,-1)==WifiP2pManager.WIFI_P2P_STATE_ENABLED;return;} if(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(intent.getAction())){if(scanning)showP2pPeers();return;} if(!WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(intent.getAction()))return;
     try{
      android.net.NetworkInfo info=intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
      if(info!=null&&info.isConnected()&&p2pChannel!=null){
@@ -24,7 +24,7 @@ public class MainActivity extends Activity {
      }
     }catch(Exception e){reportTest("Bağlantı durumu",e.toString());}
    }};
-   IntentFilter filter=new IntentFilter(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);filter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+   IntentFilter filter=new IntentFilter(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);filter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);filter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
    registerReceiver(p2pReceiver,filter);
   }catch(Exception e){reportTest("Wi-Fi Direct başlatma",e.toString());}
  }
@@ -42,8 +42,8 @@ public class MainActivity extends Activity {
    if(manager==null){reportTest("Wi-Fi Direct","Wi-Fi Direct sistem servisi bulunamadı.");return;}
    WifiP2pManager.Channel channel=p2pChannel!=null?p2pChannel:manager.initialize(this,getMainLooper(),()->reportTest("Wi-Fi Direct","Sistem Wi-Fi Direct kanalını kapattı."));
    if(channel==null){reportTest("Wi-Fi Direct","Wi-Fi Direct kanalı başlatılamadı.");return;}
-   scanning=true;p2pManager=manager;p2pChannel=channel;manager.discoverPeers(channel,new WifiP2pManager.ActionListener(){
-    public void onSuccess(){ui.postDelayed(()->{if(scanning)showP2pPeers();},5000);ui.postDelayed(()->{if(scanning){scanning=false;reportTest("Cihaz bulunamadı","20 saniye içinde Wi-Fi Direct cihazı bulunamadı. Windows + K, yalnızca Miracast alıcılarını listeler; bu APK henüz Miracast alıcısı değildir.");}},20000);}
+   scanning=true;final int generation=++scanGeneration;p2pManager=manager;p2pChannel=channel;manager.discoverPeers(channel,new WifiP2pManager.ActionListener(){
+    public void onSuccess(){ui.postDelayed(()->{if(scanning&&scanGeneration==generation)showP2pPeers();},5000);ui.postDelayed(()->{if(scanning&&scanGeneration==generation){scanning=false;reportTest("Cihaz bulunamadı","20 saniye içinde Wi-Fi Direct cihazı bulunamadı. Windows + K, yalnızca Miracast alıcılarını listeler; bu APK henüz Miracast alıcısı değildir.");}},20000);}
     public void onFailure(int reason){scanning=false;reportTest("Wi-Fi Direct","Cihaz araması başarısız. Kod: "+reason+" (0=ERROR, 1=P2P_UNSUPPORTED, 2=BUSY)");}
    });
   }catch(SecurityException e){reportTest("İzin hatası",e.toString());}
@@ -57,7 +57,7 @@ public class MainActivity extends Activity {
  void showP2pPeers(){
   if(!scanning||p2pManager==null||p2pChannel==null||isFinishing())return;
   try{p2pManager.requestPeers(p2pChannel,peers->{
-   if(!scanning||isFinishing())return;
+   if(!scanning||isFinishing()||isDestroyed())return;
    java.util.ArrayList<WifiP2pDevice> devices=new java.util.ArrayList<>(peers.getDeviceList());
    if(devices.isEmpty())return;
    scanning=false;
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
    }).setNegativeButton("İptal",null).show();
   });}catch(Exception e){scanning=false;reportTest("Cihaz arama hatası",e.toString());}
  }
- void showDiagnostics(){boolean p2p=getPackageManager().hasSystemFeature("android.hardware.wifi.direct"); android.net.wifi.WifiManager wifi=(android.net.wifi.WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE); boolean wifiOn=wifi!=null&&wifi.isWifiEnabled();boolean wfdPermission=checkSelfPermission("android.permission.CONFIGURE_WIFI_DISPLAY")==PackageManager.PERMISSION_GRANTED;boolean controlPermission=checkSelfPermission("android.permission.CONTROL_WIFI_DISPLAY")==PackageManager.PERMISSION_GRANTED;String message="Wi-Fi: "+(wifiOn?"Açık":"Kapalı")+"\nWi-Fi Direct donanımı: "+(p2p?"Mevcut":"Algılanmadı")+"\nAndroid: "+android.os.Build.VERSION.RELEASE+"\nMiracast sistem izni (CONFIGURE_WIFI_DISPLAY): "+(wfdPermission?"Verilmiş":"Verilmemiş / sistem kısıtlaması")+"\nMiracast düşük seviye kontrol izni: "+(controlPermission?"Verilmiş":"Verilmemiş / sistem kısıtlaması")+"\n\nBu uygulama henüz Miracast alıcısı değildir. Windows + K listesinde görünmesi için Wi-Fi Display alıcı ilanı, RTSP ve RTP/H.264 alıcı bileşenleri gerekir. Standart APK, sistem iznini kendi kendine alamaz.";new AlertDialog.Builder(this).setTitle("Monitor - Bağlantı Tanılama").setMessage(message).setPositiveButton("Tamam",null).show();}
+ void showDiagnostics(){boolean p2p=getPackageManager().hasSystemFeature("android.hardware.wifi.direct"); android.net.wifi.WifiManager wifi=(android.net.wifi.WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE); boolean wifiOn=wifi!=null&&wifi.isWifiEnabled();boolean wfdPermission=checkSelfPermission("android.permission.CONFIGURE_WIFI_DISPLAY")==PackageManager.PERMISSION_GRANTED;boolean controlPermission=checkSelfPermission("android.permission.CONTROL_WIFI_DISPLAY")==PackageManager.PERMISSION_GRANTED;String message="Wi-Fi: "+(wifiOn?"Açık":"Kapalı")+"\nWi-Fi Direct donanımı: "+(p2p?"Mevcut":"Algılanmadı")+"\nWi-Fi Direct sistem durumu: "+(p2pEnabled?"Etkin":"Etkin değil / henüz bildirilmedi")+"\nAndroid: "+android.os.Build.VERSION.RELEASE+"\nMiracast sistem izni (CONFIGURE_WIFI_DISPLAY): "+(wfdPermission?"Verilmiş":"Verilmemiş / sistem kısıtlaması")+"\nMiracast düşük seviye kontrol izni: "+(controlPermission?"Verilmiş":"Verilmemiş / sistem kısıtlaması")+"\n\nBu uygulama henüz Miracast alıcısı değildir. Windows + K listesinde görünmesi için Wi-Fi Display alıcı ilanı, RTSP ve RTP/H.264 alıcı bileşenleri gerekir. Standart APK, sistem iznini kendi kendine alamaz.";new AlertDialog.Builder(this).setTitle("Monitor - Bağlantı Tanılama").setMessage(message).setPositiveButton("Tamam",null).show();}
  TextView label(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextColor(Color.BLACK);t.setTextSize(size);t.setGravity(Gravity.CENTER);return t;}
  void showHome(){ui.post(()->{home.setVisibility(View.VISIBLE);picture.setVisibility(View.GONE);countdown.setText(paused&&connected?String.valueOf(seconds):"");});}
  void showPicture(){ui.post(()->{home.setVisibility(View.GONE);picture.setVisibility(View.VISIBLE);});}
