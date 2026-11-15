@@ -5,7 +5,7 @@ import android.net.wifi.p2p.WifiP2pInfo;import android.net.wifi.p2p.WifiP2pManag
 import java.net.*;import java.io.*;import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
- final Handler ui=new Handler(Looper.getMainLooper()); FrameLayout root; ImageView picture; LinearLayout home; TextView countdown; Button close; volatile boolean connected=false; volatile boolean paused=false; volatile long lastFrame=0; int seconds=0; int closeStep=0; long closeDeadline=0; final AtomicBoolean running=new AtomicBoolean(true); final AtomicBoolean streaming=new AtomicBoolean(false); WifiP2pManager p2pManager; WifiP2pManager.Channel p2pChannel; BroadcastReceiver p2pReceiver;
+ final Handler ui=new Handler(Looper.getMainLooper()); FrameLayout root; ImageView picture; LinearLayout home; TextView countdown; Button close; volatile boolean connected=false; volatile boolean paused=false; volatile long lastFrame=0; int seconds=0; int closeStep=0; long closeDeadline=0; final AtomicBoolean running=new AtomicBoolean(true); final AtomicBoolean streaming=new AtomicBoolean(false); WifiP2pManager p2pManager; WifiP2pManager.Channel p2pChannel; BroadcastReceiver p2pReceiver; boolean scanning=false;
  final Runnable tick=new Runnable(){public void run(){if(!running.get())return; if(connected&&!paused&&System.currentTimeMillis()-lastFrame>3500){connected=false;showHome();} if(paused&&connected){seconds--; if(seconds<=0){paused=false;showPicture();}else countdown.setText(String.valueOf(seconds));}if(closeStep==1&&System.currentTimeMillis()>closeDeadline){closeStep=0;close.setText("Kapat");}ui.postDelayed(this,1000);}};
  @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().getDecorView().setSystemUiVisibility(5894|1024|512);root=new FrameLayout(this);root.setBackgroundColor(Color.WHITE);setContentView(root);picture=new ImageView(this);picture.setScaleType(ImageView.ScaleType.FIT_CENTER);root.addView(picture,new FrameLayout.LayoutParams(-1,-1));home=new LinearLayout(this);home.setOrientation(LinearLayout.VERTICAL);home.setGravity(Gravity.CENTER);root.addView(home,new FrameLayout.LayoutParams(-1,-1));countdown=label("",26);home.addView(countdown);home.addView(label("Kablosuz Monitör",32));TextView name=label("Muhammed Yusuf OLGUN",20);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-2,-2);np.topMargin=36;name.setTextColor(Color.GRAY);home.addView(name,np);Button diagnostic=new Button(this);diagnostic.setText("Bağlantı Tanılama");home.addView(diagnostic);diagnostic.setOnClickListener(v->showDiagnostics());Button scan=new Button(this);scan.setText("Wi-Fi Direct Bağlan");home.addView(scan);scan.setOnClickListener(v->testWifiDirect());close=new Button(this);close.setText("Kapat");LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,-2);cp.topMargin=36;home.addView(close,cp);close.setOnClickListener(v->{if(closeStep==0){closeStep=1;closeDeadline=System.currentTimeMillis()+3000;close.setText("Kapatmayı onayla");}else if(System.currentTimeMillis()<=closeDeadline)finish();else{closeStep=0;close.setText("Kapat");}});picture.setOnTouchListener(new View.OnTouchListener(){long previous=0;public boolean onTouch(View v,android.view.MotionEvent e){if(e.getAction()==1){long now=System.currentTimeMillis();if(now-previous<350){paused=true;seconds=5;showHome();}previous=now;}return true;}});showHome();setupP2pReceiver();ui.post(tick);new Thread(this::receiveLoop,"screen-receiver").start();}
  void setupP2pReceiver(){
@@ -14,7 +14,7 @@ public class MainActivity extends Activity {
    if(p2pManager==null)return;
    p2pChannel=p2pManager.initialize(this,getMainLooper(),()->reportTest("Wi-Fi Direct","Bağlantı kanalı kapandı."));
    p2pReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){
-    if(!WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(intent.getAction()))return;
+    if(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(intent.getAction())){if(scanning)showP2pPeers();return;} if(!WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(intent.getAction()))return;
     try{
      android.net.NetworkInfo info=intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
      if(info!=null&&info.isConnected()&&p2pChannel!=null){
@@ -24,7 +24,7 @@ public class MainActivity extends Activity {
      }
     }catch(Exception e){reportTest("Bağlantı durumu",e.toString());}
    }};
-   IntentFilter filter=new IntentFilter(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
+   IntentFilter filter=new IntentFilter(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);filter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
    registerReceiver(p2pReceiver,filter);
   }catch(Exception e){reportTest("Wi-Fi Direct başlatma",e.toString());}
  }
@@ -42,9 +42,9 @@ public class MainActivity extends Activity {
    if(manager==null){reportTest("Wi-Fi Direct","Wi-Fi Direct sistem servisi bulunamadı.");return;}
    WifiP2pManager.Channel channel=p2pChannel!=null?p2pChannel:manager.initialize(this,getMainLooper(),()->reportTest("Wi-Fi Direct","Sistem Wi-Fi Direct kanalını kapattı."));
    if(channel==null){reportTest("Wi-Fi Direct","Wi-Fi Direct kanalı başlatılamadı.");return;}
-   manager.discoverPeers(channel,new WifiP2pManager.ActionListener(){
-    public void onSuccess(){ui.postDelayed(()->{try{manager.requestPeers(channel,peers->{java.util.ArrayList<WifiP2pDevice> devices=new java.util.ArrayList<>(peers.getDeviceList());if(devices.isEmpty()){reportTest("Wi-Fi Direct","Arama tamamlandı; bağlantı kurulabilecek Wi-Fi Direct cihazı bulunamadı. Windows bilgisayarları bu listede görünmeyebilir.");return;}String[] labels=new String[devices.size()];for(int i=0;i<devices.size();i++)labels[i]=devices.get(i).deviceName+" ("+devices.get(i).deviceAddress+")";new AlertDialog.Builder(MainActivity.this).setTitle("Wi-Fi Direct cihaz seç").setItems(labels,(dialog,which)->{WifiP2pConfig config=new WifiP2pConfig();config.deviceAddress=devices.get(which).deviceAddress;try{manager.connect(channel,config,new WifiP2pManager.ActionListener(){public void onSuccess(){reportTest("Bağlantı isteği","Wi-Fi Direct bağlantı isteği gönderildi. Karşı cihazın onayı ve bağlantı sonucu bekleniyor. Bu işlem ekran görüntüsü aktarmaz.");}public void onFailure(int reason){reportTest("Bağlantı başarısız","Wi-Fi Direct bağlantı hata kodu: "+reason);}});}catch(Exception e){reportTest("Bağlantı hatası",e.toString());}}).setNegativeButton("İptal",null).show();});}catch(Exception e){reportTest("Cihaz listesi hatası",e.toString());}},3500);}
-    public void onFailure(int reason){reportTest("Wi-Fi Direct","Cihaz araması başarısız. Kod: "+reason+" (0=ERROR, 1=P2P_UNSUPPORTED, 2=BUSY)");}
+   scanning=true;manager.discoverPeers(channel,new WifiP2pManager.ActionListener(){
+    public void onSuccess(){ui.postDelayed(()->{if(scanning)showP2pPeers();},8000);}
+    public void onFailure(int reason){scanning=false;reportTest("Wi-Fi Direct","Cihaz araması başarısız. Kod: "+reason+" (0=ERROR, 1=P2P_UNSUPPORTED, 2=BUSY)");}
    });
   }catch(SecurityException e){reportTest("İzin hatası",e.toString());}
    catch(RuntimeException e){reportTest("Wi-Fi Direct hatası",e.toString());}
@@ -54,6 +54,24 @@ public class MainActivity extends Activity {
   if(requestCode==501){if(grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED)testWifiDirect();else reportTest("İzin gerekli","Wi-Fi Direct testi için istenen izni verin.");}
  }
 
+ void showP2pPeers(){
+  if(!scanning||p2pManager==null||p2pChannel==null||isFinishing())return;
+  try{p2pManager.requestPeers(p2pChannel,peers->{
+   if(!scanning||isFinishing())return;
+   java.util.ArrayList<WifiP2pDevice> devices=new java.util.ArrayList<>(peers.getDeviceList());
+   if(devices.isEmpty())return;
+   scanning=false;
+   String[] names=new String[devices.size()];
+   for(int i=0;i<devices.size();i++)names[i]=devices.get(i).deviceName+" ("+devices.get(i).deviceAddress+")";
+   new AlertDialog.Builder(this).setTitle("Wi-Fi Direct cihazları").setItems(names,(dialog,index)->{
+    WifiP2pConfig config=new WifiP2pConfig();config.deviceAddress=devices.get(index).deviceAddress;
+    try{p2pManager.connect(p2pChannel,config,new WifiP2pManager.ActionListener(){
+     public void onSuccess(){reportTest("Bağlantı isteği","İstek gönderildi; gerçek bağlantı sonucu bekleniyor.");}
+     public void onFailure(int reason){reportTest("Bağlantı hatası","Kod: "+reason);}
+    });}catch(Exception e){reportTest("Bağlantı hatası",e.toString());}
+   }).setNegativeButton("İptal",null).show();
+  });}catch(Exception e){scanning=false;reportTest("Cihaz arama hatası",e.toString());}
+ }
  void showDiagnostics(){boolean p2p=getPackageManager().hasSystemFeature("android.hardware.wifi.direct"); android.net.wifi.WifiManager wifi=(android.net.wifi.WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE); boolean wifiOn=wifi!=null&&wifi.isWifiEnabled();String message="Wi-Fi: "+(wifiOn?"Açık":"Kapalı")+"\nWi-Fi Direct donanımı: "+(p2p?"Mevcut":"Algılanmadı")+"\nAndroid: "+android.os.Build.VERSION.RELEASE+"\n\nBu sürüm Miracast alıcısı değildir. Windows + K üzerinden görünmez. Wi-Fi Direct donanımı bulunması tek başına Miracast alıcısı desteği sağlamaz.";new AlertDialog.Builder(this).setTitle("Monitor - Bağlantı Tanılama").setMessage(message).setPositiveButton("Tamam",null).show();}
  TextView label(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextColor(Color.BLACK);t.setTextSize(size);t.setGravity(Gravity.CENTER);return t;}
  void showHome(){ui.post(()->{home.setVisibility(View.VISIBLE);picture.setVisibility(View.GONE);countdown.setText(paused&&connected?String.valueOf(seconds):"");});}
