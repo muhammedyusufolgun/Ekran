@@ -36,3 +36,10 @@ Windows bilgisayarda `netsh wlan show drivers` çıktısı `Wireless Display Sup
 **Kapı 4 — Kabul testi:** Windows + K keşfi, bağlantı, çoğaltma, genişletme, gecikme ve yeniden bağlanma gerçek Windows 10/11 + Galaxy Z Flip7 cihazlarında ayrı ayrı doğrulanmalıdır. Hiçbiri henüz başarılı olarak raporlanmamıştır.
 
 **Kısıt:** Windows'a yazılım kurulmayacak. Normal APK ile sistem izinleri sağlanamıyorsa üretici desteği veya işletim sistemi düzeyinde değişiklik olmadan Windows + K hedefi sağlanamayabilir. APK'nın başarıyla derlenmesi Miracast uyumluluğu anlamına gelmez.
+
+
+## Gerçek Windows Miracast alıcısı — platform engeli (2026-11)
+
+**Durum: uygulanmadı / çalıştığı doğrulanmadı.** Wi-Fi Direct taraması, Miracast sink değildir. Windows Win+K ile bulunabilmek için Wi-Fi Display sink (WFD IE) ilanı, P2P grup kurulumu, RTSP kontrolü, RTP/MPEG-TS alımı ve H.264 donanım çözme gerekir. Standart Android APK, WFD ilanı için gereken `CONFIGURE_WIFI_DISPLAY` ayrıcalığını alamaz; Samsung Android 17 tanılamasında izin reddedilmiştir. Bu nedenle normal APK derlemesiyle Win+K çalışır denemez.
+
+Alternatif araştırma: https://github.com/InsertX2k/miracast_second_screen (root/Magisk/LSPosed gerektirir) ve https://github.com/Morishima-Yoru/Mirax (Shizuku/ayrıcalıklı yardımcı, cihaza bağlı). Bu projelerin Galaxy Z Flip7 Android 17 ile uyumluluğu doğrulanmamıştır. Root/bootloader değişiklikleri cihaz güvenliği ve veri kaybı riski taşır. Windows'a yazılım kurmadan çalışma hedefi korunmaktadır; ancak telefon tarafında sistem yetkisi veya üretici desteği gerekebilir.
